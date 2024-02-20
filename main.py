@@ -69,7 +69,6 @@ def find_max_length_sequence(series):
     return max_length
 
 
-
 def main(filepath):
     df = pd.read_csv(filepath)
     sequences = df.iloc[:, 0]
