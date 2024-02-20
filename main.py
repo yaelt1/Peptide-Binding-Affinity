@@ -12,11 +12,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as functional
 import torch.optim as optim
+import keras
 
 
 AMINO='ADEFGHKLNPQRSVWYX'
 
-def convert_sequences_to_tokens(sequences, max_length=16, padding='right'):
+def convert_sequences_to_tokens(sequences, max_length, padding='right'):
         """Convert sequence strings to token representation
 
         Args:
@@ -50,13 +51,29 @@ def convert_tokens_to_one_hot(tokens):
             
         return functional.one_hot(tokens, num_classes=len(AMINO)).float()
 
+def find_max_length_sequence(series):
+    """
+    Find the maximum length sequence from a series of sequences.
+
+    Args:
+    - series: Pandas Series containing sequences
+
+    Returns:
+    - max_sequence: Maximum length sequence found in the series
+    """
+    max_length = 0
+    for sequence in series:
+        length = len(sequence)
+        if length > max_length:
+            max_length = length
+    return max_length
+
 
 def main(filepath):
     df = pd.read_csv(filepath)
     sequences = df.iloc[:, 0]
-    sequences_sort = sorted(list(sequences), key = lambda x: len(x),reverse=True)
-    print(len(sequences_sort[0]))
-    tokens = convert_sequences_to_tokens(sequences=sequences)
+    max_length = find_max_length_sequence(sequences)
+    tokens = convert_sequences_to_tokens(sequences=sequences, max_length=max_length)
     hot_encoding = convert_tokens_to_one_hot(tokens)
     
 if __name__=="__main__":
