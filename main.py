@@ -64,7 +64,7 @@ def keras_model():
     model.add(Dense(100, activation='relu'))
     model.add(Dense(100, activation='relu'))
     model.add(Dense(1, activation=None))
-    model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001), loss='MSE', metrics=['accuracy'])
+    model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001), loss='MSE', metrics=['MeanAbsoluteError'])
     return model
   
   
@@ -80,7 +80,7 @@ def cnn_model():
     ])
     model.compile(optimizer='adam',
               loss='mse',  # Assuming you have integer labels
-              metrics=['accuracy'])
+             metrics=['MeanAbsoluteError'])
     return model
     
 def fit_model(model_name, one_hot_sequences, labels):
@@ -109,12 +109,11 @@ def main(filepath):
     scores += 100
     scores =np.log10(scores)
     scores = pd.Series(scores)
-    print(scores.shape)
     max_length = find_max_length_sequence(sequences)
     tokens = convert_sequences_to_tokens(sequences=sequences, max_length=max_length)
     one_hot_sequences = convert_tokens_to_one_hot(tokens)
     model = cnn_model()
-    fit_model("cnn", one_hot_sequences, scores)
+    fit_model("keras", one_hot_sequences, scores)
     
             
     
