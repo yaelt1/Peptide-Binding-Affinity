@@ -78,7 +78,7 @@ def cnn_model():
         tf.keras.layers.Dense(1024, activation='relu'),
         tf.keras.layers.Dense(10, activation='softmax')  # Assuming 10 classes for classification
     ])
-    model.compile(optimizer='adam',
+    model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),
               loss='mse',  # Assuming you have integer labels
              metrics=['MeanAbsoluteError'])
     return model
@@ -99,9 +99,7 @@ def fit_model(model_name, one_hot_sequences, labels):
     print(score)
 
 
-
-
-def main(filepath):
+def get_model_data(filepath)
     df = pd.read_csv(filepath)
     sequences = df.iloc[:, 0]
     scores =  df.iloc[:, 1]
@@ -109,11 +107,18 @@ def main(filepath):
     scores += 100
     scores =np.log10(scores)
     scores = pd.Series(scores)
-    max_length = find_max_length_sequence(sequences)
-    tokens = convert_sequences_to_tokens(sequences=sequences, max_length=max_length)
+    
+    return sequences, scores
+def main(train_filepath, predict_filepath):
+    train_sequences, train_scores = get_model_data(train_filepath)
+    max_length = find_max_length_sequence(train_sequences)
+    tokens = convert_sequences_to_tokens(sequences=train_sequences, max_length=max_length)
     one_hot_sequences = convert_tokens_to_one_hot(tokens)
     model = cnn_model()
-    fit_model("keras", one_hot_sequences, scores)
+    fit_model("keras", one_hot_sequences, train_scores)
+    
+    test_sequences, test_scores = get_model_data(predict_filepath)
+    model.predict()
     
             
     
@@ -121,4 +126,4 @@ def main(filepath):
        
     
 if __name__=="__main__":
-    main("Diaphorase.csv")
+    main("Diaphorase.csv","FNR.csv" )
