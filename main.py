@@ -125,13 +125,13 @@ def fit_model(model_name, one_hot_sequences, labels):
         print(f"Fold {fold + 1}")
         X_train, X_test = one_hot_sequences[train_index], one_hot_sequences[test_index]
         y_train, y_test = labels[train_index], labels[test_index]
-        history = model.fit(X_train,y_train, batch_size=32, epochs=10, validation_data=(X_test, y_test))
+        history = model.fit(X_train,y_train, batch_size=32, epochs=7, validation_data=(X_test, y_test))
     score = model.evaluate(X_test, y_test, verbose=0)
     print(score)
     return model
 
 
-def get_model_data(filepath,max_length ):
+def get_model_data(filepath,max_length):
     df = pd.read_csv(filepath)
     sequences = df.iloc[:, 0]
     scores =  df.iloc[:, 1]
@@ -179,20 +179,20 @@ if __name__=="__main__":
     #     df = pd.read_csv(file_path)
     #     cur_max = find_max_length_sequence(df.iloc[:, 0])
     #     max_length = max(max_length, cur_max)
+    files = [file for file in os.listdir(directory)]
+    df = pd.DataFrame(columns= files)
     
-    fit_filepath = os.path.join(directory, "Diaphorase.csv")
-    model = fit_on_data(fit_filepath, max_length)
-    # model = keras.models.load_model("/Users/yaeltzur/Desktop/uni/third_yaer/סדנה/keras_dia_model.keras")
-    pearson_coef = {}
-    pearson_coef["Diaphorase"] = []
-    for file in os.listdir(directory):
-        if file != "Diaphorase.csv":
-            file_path = os.path.join(directory, file)
-            print("Predicting on ",file)
-            pearson_coef_pred = predict_on_data(model, file_path, max_length)
-            pearson_coef["Diaphorase"].append(pearson_coef_pred)
-    with open("pearson_coef_dict", "w") as json_file:
+    for train_file in os.listdir(directory):
+        fit_filepath = os.path.join(directory, train_file)
+        model = fit_on_data(fit_filepath, max_length)
+        pearson_coef_preds = []
+        for predict_file in os.listdir(directory):
+            predict_file_path = os.path.join(directory, predict_file)
+            print("Predicting on ",predict_file_path)
+            pearson_coef_pred = predict_on_data(model, predict_file_path, max_length)
+            pearson_coef_preds.append(pearson_coef_pred)
+        df[train_file] = pd.Series(pearson_coef_preds)
     
-        json.dump(pearson_coef, json_file)
-
+    df.to_csv("results_keras.csv")
+# final 
     
