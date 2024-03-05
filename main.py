@@ -67,7 +67,7 @@ def keras_model():
     model.add(Dense(100, activation='relu'))
     model.add(Dense(1, activation=None))
     model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001), loss='MSE', metrics=[pearson_correlation_coefficient])
-    early_stopping = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
+    early_stopping = keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
     return model
   
 import tensorflow.keras.backend as K
