@@ -1,9 +1,11 @@
 import pandas as pd
 from sklearn.model_selection import KFold
+from sklearn.metrics import mean_absolute_error
 import torch
 import keras
 from torch.nn import functional
 import torch.nn.functional as F
+from tensorflow.keras.optimizers import Adam
 from keras import Sequential
 from keras import layers
 from keras.layers import Conv1D, MaxPooling1D, Flatten, Dense, Dropout, Input, Reshape
@@ -64,33 +66,57 @@ def keras_model():
     model.add(Dense(100, activation='relu'))
     model.add(Dense(100, activation='relu'))
     model.add(Dense(1, activation=None))
-    model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001), loss='MSE', metrics=['MeanAbsoluteError'])
+    model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001), loss='MSE', metrics=[pearson_correlation_coefficient])
+    early_stopping = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
     return model
   
-  
+import tensorflow.keras.backend as K
+
+def pearson_correlation_coefficient(y_true, y_pred):
+    """
+    Calculate Pearson correlation coefficient as a metric.
+    
+    Arguments:
+    y_true -- true labels
+    y_pred -- predicted labels
+    
+    Returns:
+    Pearson correlation coefficient value
+    """
+
+    y_true -= K.mean(y_true)
+    y_pred -= K.mean(y_pred)
+    
+    y_true /= K.std(y_true) + K.epsilon()
+    y_pred /= K.std(y_pred) + K.epsilon()
+
+    pearson_r = K.mean(y_true * y_pred)
+
+    return pearson_r
+
 def cnn_model():
     model = tf.keras.Sequential([
-        tf.keras.layers.Conv2D(32, kernel_size=3, activation='relu'),
-        tf.keras.layers.MaxPool2D(pool_size=2, strides=2),
-        tf.keras.layers.Conv2D(64, kernel_size=3, activation='relu'),
-        tf.keras.layers.MaxPool2D(pool_size=2, strides=2),
+        model.add(keras.layers.Masking(mask_value=0)),
+        tf.keras.layers.Conv1D(32, kernel_size=3, activation='relu'),
+        tf.keras.layers.MaxPool1D(pool_size=2, strides=2),
+        tf.keras.layers.Conv1D(64, kernel_size=3, activation='relu'),
+        tf.keras.layers.MaxPool1D(pool_size=2, strides=2),
         tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(1024, activation='relu'),
-        tf.keras.layers.Dense(10, activation='softmax')  # Assuming 10 classes for classification
+        tf.keras.layers.Dense(100, activation='relu'),
+        tf.keras.layers.Dense(1, activation=None) 
     ])
     model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),
-              loss='mse',  # Assuming you have integer labels
-             metrics=['MeanAbsoluteError'])
+              loss='mse',
+             metrics=[pearson_correlation_coefficient])
     return model
     
-def fit_model(model_name, one_hot_sequences, labels):
-    if model_name.lower()=="keras":
-        model = keras_model()
-    elif model_name.lower()=="cnn":
-        model = cnn_model()
-        one_hot_sequences = np.expand_dims(one_hot_sequences, axis=-1)       
+def fit_model(model_name, one_hot_sequences, labels):   
     kf = KFold(n_splits=5, shuffle=True)
     for fold, (train_index, test_index) in enumerate(kf.split(one_hot_sequences)):
+        if model_name.lower()=="keras":
+            model = keras_model()
+        elif model_name.lower()=="cnn":
+            model = cnn_model()  
         print(f"Fold {fold + 1}")
         X_train, X_test = one_hot_sequences[train_index], one_hot_sequences[test_index]
         y_train, y_test = labels[train_index], labels[test_index]
@@ -99,26 +125,29 @@ def fit_model(model_name, one_hot_sequences, labels):
     print(score)
 
 
-def get_model_data(filepath)
+def get_model_data(filepath):
     df = pd.read_csv(filepath)
     sequences = df.iloc[:, 0]
     scores =  df.iloc[:, 1]
     scores = np.array(scores)
     scores += 100
     scores =np.log10(scores)
+    mean = scores.mean()
+    scores -= mean
     scores = pd.Series(scores)
-    
-    return sequences, scores
-def main(train_filepath, predict_filepath):
-    train_sequences, train_scores = get_model_data(train_filepath)
-    max_length = find_max_length_sequence(train_sequences)
-    tokens = convert_sequences_to_tokens(sequences=train_sequences, max_length=max_length)
+    max_length = find_max_length_sequence(sequences)
+    tokens = convert_sequences_to_tokens(sequences=sequences, max_length=max_length)
     one_hot_sequences = convert_tokens_to_one_hot(tokens)
-    model = cnn_model()
-    fit_model("keras", one_hot_sequences, train_scores)
+    return one_hot_sequences, scores
     
-    test_sequences, test_scores = get_model_data(predict_filepath)
-    model.predict()
+    
+    
+def main(train_filepath, predict_filepath):
+    train_one_hot_sequences, train_scores = get_model_data(train_filepath)
+    test_one_hot_sequences, test_scores = get_model_data(predict_filepath)
+    model = fit_model("keras", train_one_hot_sequences, train_scores)
+    predictions = model.predict(test_one_hot_sequences, batch_size=None, verbose="auto", steps=None, callbacks=None)
+    mae = mean_absolute_error(test_scores, predictions)
     
             
     
@@ -126,4 +155,7 @@ def main(train_filepath, predict_filepath):
        
     
 if __name__=="__main__":
-    main("Diaphorase.csv","FNR.csv" )
+    # train_one_hot_sequences, scores = get_model_data("Diaphorase.csv")
+    # plt.hist(scores, bins=100)
+    # plt.show()
+    main("Diaphorase.csv","Diaphorase.csv" )
