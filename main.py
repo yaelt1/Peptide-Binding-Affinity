@@ -1,6 +1,6 @@
 import pandas as pd
 from sklearn.model_selection import KFold
-from sklearn.metrics import mean_absolute_error
+from scipy.stats import pearsonr
 import torch
 import keras
 from torch.nn import functional
@@ -13,6 +13,11 @@ from keras.utils import to_categorical
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import numpy as np
+import keras.backend as K_backend
+import tensorflow.keras.backend as K
+import os
+import json
+
 
 AMINO='ADEFGHKLNPQRSVWYX'
 
@@ -67,10 +72,10 @@ def keras_model():
     model.add(Dense(100, activation='relu'))
     model.add(Dense(1, activation=None))
     model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001), loss='MSE', metrics=[pearson_correlation_coefficient])
-    early_stopping = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
+    early_stopping = keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
     return model
   
-import tensorflow.keras.backend as K
+
 
 def pearson_correlation_coefficient(y_true, y_pred):
     """
@@ -123,9 +128,10 @@ def fit_model(model_name, one_hot_sequences, labels):
         history = model.fit(X_train,y_train, batch_size=32, epochs=10, validation_data=(X_test, y_test))
     score = model.evaluate(X_test, y_test, verbose=0)
     print(score)
+    return model
 
 
-def get_model_data(filepath):
+def get_model_data(filepath,max_length ):
     df = pd.read_csv(filepath)
     sequences = df.iloc[:, 0]
     scores =  df.iloc[:, 1]
@@ -135,19 +141,27 @@ def get_model_data(filepath):
     mean = scores.mean()
     scores -= mean
     scores = pd.Series(scores)
-    max_length = find_max_length_sequence(sequences)
+    # max_length = find_max_length_sequence(sequences)
     tokens = convert_sequences_to_tokens(sequences=sequences, max_length=max_length)
     one_hot_sequences = convert_tokens_to_one_hot(tokens)
     return one_hot_sequences, scores
     
     
     
-def main(train_filepath, predict_filepath):
-    train_one_hot_sequences, train_scores = get_model_data(train_filepath)
-    test_one_hot_sequences, test_scores = get_model_data(predict_filepath)
+def fit_on_data(train_filepath, max_length):
+    K_backend.clear_session()
+    train_one_hot_sequences, train_scores = get_model_data(train_filepath, max_length)
     model = fit_model("keras", train_one_hot_sequences, train_scores)
+    return model
+
+def predict_on_data(model, predict_filepath, max_length):
+    test_one_hot_sequences, test_scores = get_model_data(predict_filepath, max_length)
     predictions = model.predict(test_one_hot_sequences, batch_size=None, verbose="auto", steps=None, callbacks=None)
-    mae = mean_absolute_error(test_scores, predictions)
+    np_scores = test_scores.to_numpy()
+    predictions = np.squeeze(predictions)
+    pearson_coefficient, _ = pearsonr(np_scores, predictions)
+    print(pearson_coefficient)
+    return pearson_coefficient
     
             
     
@@ -158,4 +172,27 @@ if __name__=="__main__":
     # train_one_hot_sequences, scores = get_model_data("Diaphorase.csv")
     # plt.hist(scores, bins=100)
     # plt.show()
-    main("Diaphorase.csv","Diaphorase.csv" )
+    max_length = 16
+    directory ="/Users/yaeltzur/Desktop/uni/third_yaer/סדנה/proteins"
+    # for file in os.listdir(directory):
+    #     file_path = os.path.join(directory, file)
+    #     df = pd.read_csv(file_path)
+    #     cur_max = find_max_length_sequence(df.iloc[:, 0])
+    #     max_length = max(max_length, cur_max)
+    
+    fit_filepath = os.path.join(directory, "Diaphorase.csv")
+    model = fit_on_data(fit_filepath, max_length)
+    # model = keras.models.load_model("/Users/yaeltzur/Desktop/uni/third_yaer/סדנה/keras_dia_model.keras")
+    pearson_coef = {}
+    pearson_coef["Diaphorase"] = []
+    for file in os.listdir(directory):
+        if file != "Diaphorase.csv":
+            file_path = os.path.join(directory, file)
+            print("Predicting on ",file)
+            pearson_coef_pred = predict_on_data(model, file_path, max_length)
+            pearson_coef["Diaphorase"].append(pearson_coef_pred)
+    with open("pearson_coef_dict", "w") as json_file:
+    
+        json.dump(pearson_coef, json_file)
+
+    
