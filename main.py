@@ -101,7 +101,6 @@ def pearson_correlation_coefficient(y_true, y_pred):
 
 def cnn_model():
     model = tf.keras.Sequential([
-        model.add(keras.layers.Masking(mask_value=0)),
         tf.keras.layers.Conv1D(32, kernel_size=3, activation='relu'),
         tf.keras.layers.MaxPool1D(pool_size=2, strides=2),
         tf.keras.layers.Conv1D(64, kernel_size=3, activation='relu'),
@@ -110,6 +109,7 @@ def cnn_model():
         tf.keras.layers.Dense(100, activation='relu'),
         tf.keras.layers.Dense(1, activation=None) 
     ])
+        model.add(keras.layers.Masking(mask_value=0))
     model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),
               loss='mse',
              metrics=[pearson_correlation_coefficient])
