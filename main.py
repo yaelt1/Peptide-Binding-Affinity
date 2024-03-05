@@ -148,10 +148,10 @@ def get_model_data(filepath,max_length):
     
     
     
-def fit_on_data(train_filepath, max_length):
+def fit_on_data(train_filepath, max_length,  model="keras"):
     K_backend.clear_session()
     train_one_hot_sequences, train_scores = get_model_data(train_filepath, max_length)
-    model = fit_model("keras", train_one_hot_sequences, train_scores)
+    model = fit_model( model, train_one_hot_sequences, train_scores)
     return model
 
 def predict_on_data(model, predict_filepath, max_length):
