@@ -167,7 +167,6 @@ def predict_on_data(model, predict_filepath, max_length):
 def train_pred_all_pairs(model_name, proteins_dir, max_length=16):
     files = [file for file in os.listdir(proteins_dir)]
     df = pd.DataFrame(columns= files)
-
     for train_file in files:
         fit_filepath = os.path.join(proteins_dir, train_file)
         model = fit_on_data(fit_filepath, max_length, model_name)
