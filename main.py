@@ -1,22 +1,20 @@
 import pandas as pd
 from sklearn.model_selection import KFold
 from scipy.stats import pearsonr
-import torch
 import keras
-from torch.nn import functional
-import torch.nn.functional as F
-from tensorflow.keras.optimizers import Adam
+from keras.layers import Conv1D, MaxPooling1D, Flatten, Dense, Dropout, Input, Reshape, Masking
 from keras import Sequential
 from keras import layers
-from keras.layers import Conv1D, MaxPooling1D, Flatten, Dense, Dropout, Input, Reshape
-from keras.utils import to_categorical
-import matplotlib.pyplot as plt
-import tensorflow as tf
-import numpy as np
 import keras.backend as K_backend
+import torch
+from torch.nn import functional
+import torch.nn.functional as F
+import tensorflow as tf
+from tensorflow.keras.optimizers import Adam
 import tensorflow.keras.backend as K
+import matplotlib.pyplot as plt
+import numpy as np
 import os
-import json
 
 
 AMINO='ADEFGHKLNPQRSVWYX'
@@ -62,18 +60,6 @@ def find_max_length_sequence(series):
             max_length = length
     return max_length
 
-def keras_model():
-    N=5
-    model = Sequential()
-    model.add(Input([16,17]))
-    model.add(Dense(N, activation=None))
-    model.add(Reshape((16*N,)))
-    model.add(Dense(100, activation='relu'))
-    model.add(Dense(100, activation='relu'))
-    model.add(Dense(1, activation=None))
-    model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001), loss='MSE', metrics=[pearson_correlation_coefficient])
-    early_stopping = keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
-    return model
   
 
 
@@ -96,8 +82,20 @@ def pearson_correlation_coefficient(y_true, y_pred):
     y_pred /= K.std(y_pred) + K.epsilon()
 
     pearson_r = K.mean(y_true * y_pred)
-
     return pearson_r
+def fnn_model():
+    N=5
+    model = Sequential()
+    model.add(Input([16,17]))
+    model.add(Dense(N, activation=None))
+    model.add(Reshape((16*N,)))
+    model.add(Dense(100, activation='relu'))
+    model.add(Dense(100, activation='relu'))
+    model.add(Dense(1, activation=None))
+    model.add(Masking(mask_value=0))
+    model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001), loss='MSE', metrics=[pearson_correlation_coefficient])
+    early_stopping = keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
+    return model
 
 def cnn_model():
     model = tf.keras.Sequential([
@@ -109,25 +107,27 @@ def cnn_model():
         tf.keras.layers.Dense(100, activation='relu'),
         tf.keras.layers.Dense(1, activation=None) 
     ])
-    model.add(keras.layers.Masking(mask_value=0))
+    model.add(tf.keras.layers.Masking(mask_value=0))
     model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),
-              loss='mse',
+              loss='MSE',
              metrics=[pearson_correlation_coefficient])
+    early_stopping = keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
+
     return model
     
 def fit_model(model_name, one_hot_sequences, labels):   
     kf = KFold(n_splits=5, shuffle=True)
     for fold, (train_index, test_index) in enumerate(kf.split(one_hot_sequences)):
-        if model_name.lower()=="keras":
-            model = keras_model()
+        if model_name.lower()=="fnn":
+            model = fnn_model()
         elif model_name.lower()=="cnn":
             model = cnn_model()  
         print(f"Fold {fold + 1}")
         X_train, X_test = one_hot_sequences[train_index], one_hot_sequences[test_index]
         y_train, y_test = labels[train_index], labels[test_index]
         history = model.fit(X_train,y_train, batch_size=32, epochs=7, validation_data=(X_test, y_test))
-    score = model.evaluate(X_test, y_test, verbose=0)
-    print(score)
+    # score = model.evaluate(X_test, y_test, verbose=0)
+    # print(score)
     return model
 
 
@@ -141,14 +141,12 @@ def get_model_data(filepath,max_length):
     mean = scores.mean()
     scores -= mean
     scores = pd.Series(scores)
-    # max_length = find_max_length_sequence(sequences)
     tokens = convert_sequences_to_tokens(sequences=sequences, max_length=max_length)
     one_hot_sequences = convert_tokens_to_one_hot(tokens)
     return one_hot_sequences, scores
     
     
-    
-def fit_on_data(train_filepath, max_length, model="keras"):
+def fit_on_data(train_filepath, max_length, model="fnn"):
     K_backend.clear_session()
     train_one_hot_sequences, train_scores = get_model_data(train_filepath, max_length)
     model = fit_model(model, train_one_hot_sequences, train_scores)
@@ -166,30 +164,23 @@ def predict_on_data(model, predict_filepath, max_length):
             
     
         
-def main_projct(model_name):
-    max_length = 16
-    directory ="/Users/yaeltzur/Desktop/uni/third_yaer/סדנה/proteins"
-    # for file in os.listdir(directory):
-    #     file_path = os.path.join(directory, file)
-    #     df = pd.read_csv(file_path)
-    #     cur_max = find_max_length_sequence(df.iloc[:, 0])
-    #     max_length = max(max_length, cur_max)
-    files = [file for file in os.listdir(directory)]
+def main_projct(model_name, proteins_dir, max_length=16):
+    files = [file for file in os.listdir(proteins_dir)]
     df = pd.DataFrame(columns= files)
-    
-    for train_file in os.listdir(directory):
-        fit_filepath = os.path.join(directory, train_file)
+
+    for train_file in files:
+        fit_filepath = os.path.join(proteins_dir, train_file)
         model = fit_on_data(fit_filepath, max_length, model_name)
         pearson_coef_preds = []
-        for predict_file in os.listdir(directory):
-            predict_file_path = os.path.join(directory, predict_file)
+        for predict_file in files:
+            predict_file_path = os.path.join(proteins_dir, predict_file)
             print("Predicting on ",predict_file_path)
             pearson_coef_pred,predictions = predict_on_data(model, predict_file_path, max_length)
             pearson_coef_preds.append(pearson_coef_pred)
         df[train_file] = pd.Series(pearson_coef_preds)
     
     df.index = files
-    df.to_csv(f"results_{model_name}_new.csv")
+    df.to_csv(f"results_{model_name}.csv")
 
          
 def scatter_test_pred(fit_filepath, predict_file_path, model_name,max_length=16): 
@@ -198,8 +189,6 @@ def scatter_test_pred(fit_filepath, predict_file_path, model_name,max_length=16)
     pearson_coef_pred,predictions = predict_on_data(model, predict_file_path, max_length)
     x = test_scores
     y = np.squeeze(predictions)
-    # test_scores = pd.read_csv("/Users/yaeltzur/Desktop/uni/third_yaer/סדנה/fred_test.csv", header=None, index_col=False).iloc[:, 1].dropna()
-    # predictions = pd.read_csv("/Users/yaeltzur/Desktop/uni/third_yaer/סדנה/pred_tnfr.csv", header=None, index_col=False).iloc[:, 1].dropna()
     plt.figure(figsize=(8, 6))
     plt.scatter(x, y)
     plt.title('True vs Predicted Scores')
@@ -212,6 +201,5 @@ def scatter_test_pred(fit_filepath, predict_file_path, model_name,max_length=16)
     
     
 if __name__=="__main__":
-    # scatter_test_pred("/Users/yaeltzur/Desktop/uni/third_yaer/סדנה/proteins/Ferredoxin.csv","/Users/yaeltzur/Desktop/uni/third_yaer/סדנה/proteins/TNFR.csv","cnn")
-    main_projct("keras")
+    main_projct("cnn",proteins_dir="/Users/yaeltzur/Desktop/uni/third_yaer/סדנה/proteins")
     
