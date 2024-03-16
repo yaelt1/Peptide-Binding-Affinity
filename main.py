@@ -164,7 +164,7 @@ def predict_on_data(model, predict_filepath, max_length):
             
     
         
-def main_projct(model_name, proteins_dir, max_length=16):
+def train_pred_all_pairs(model_name, proteins_dir, max_length=16):
     files = [file for file in os.listdir(proteins_dir)]
     df = pd.DataFrame(columns= files)
 
@@ -201,5 +201,5 @@ def scatter_test_pred(fit_filepath, predict_file_path, model_name,max_length=16)
     
     
 if __name__=="__main__":
-    main_projct("cnn",proteins_dir="/Users/yaeltzur/Desktop/uni/third_yaer/סדנה/proteins")
+    train_pred_all_pairs("cnn",proteins_dir="/Users/yaeltzur/Desktop/uni/third_yaer/סדנה/proteins")
     
