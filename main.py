@@ -101,7 +101,6 @@ def pearson_correlation_coefficient(y_true, y_pred):
 
 def cnn_model():
     model = tf.keras.Sequential([
-        model.add(keras.layers.Masking(mask_value=0)),
         tf.keras.layers.Conv1D(32, kernel_size=3, activation='relu'),
         tf.keras.layers.MaxPool1D(pool_size=2, strides=2),
         tf.keras.layers.Conv1D(64, kernel_size=3, activation='relu'),
@@ -110,6 +109,7 @@ def cnn_model():
         tf.keras.layers.Dense(100, activation='relu'),
         tf.keras.layers.Dense(1, activation=None) 
     ])
+    model.add(keras.layers.Masking(mask_value=0))
     model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),
               loss='mse',
              metrics=[pearson_correlation_coefficient])
@@ -148,10 +148,10 @@ def get_model_data(filepath,max_length):
     
     
     
-def fit_on_data(train_filepath, max_length):
+def fit_on_data(train_filepath, max_length, model="keras"):
     K_backend.clear_session()
     train_one_hot_sequences, train_scores = get_model_data(train_filepath, max_length)
-    model = fit_model("keras", train_one_hot_sequences, train_scores)
+    model = fit_model(model, train_one_hot_sequences, train_scores)
     return model
 
 def predict_on_data(model, predict_filepath, max_length):
@@ -161,17 +161,12 @@ def predict_on_data(model, predict_filepath, max_length):
     predictions = np.squeeze(predictions)
     pearson_coefficient, _ = pearsonr(np_scores, predictions)
     print(pearson_coefficient)
-    return pearson_coefficient
+    return pearson_coefficient, predictions
     
             
     
         
-       
-    
-if __name__=="__main__":
-    # train_one_hot_sequences, scores = get_model_data("Diaphorase.csv")
-    # plt.hist(scores, bins=100)
-    # plt.show()
+def main_projct(model_name):
     max_length = 16
     directory ="/Users/yaeltzur/Desktop/uni/third_yaer/סדנה/proteins"
     # for file in os.listdir(directory):
@@ -184,15 +179,39 @@ if __name__=="__main__":
     
     for train_file in os.listdir(directory):
         fit_filepath = os.path.join(directory, train_file)
-        model = fit_on_data(fit_filepath, max_length)
+        model = fit_on_data(fit_filepath, max_length, model_name)
         pearson_coef_preds = []
         for predict_file in os.listdir(directory):
             predict_file_path = os.path.join(directory, predict_file)
             print("Predicting on ",predict_file_path)
-            pearson_coef_pred = predict_on_data(model, predict_file_path, max_length)
+            pearson_coef_pred,predictions = predict_on_data(model, predict_file_path, max_length)
             pearson_coef_preds.append(pearson_coef_pred)
         df[train_file] = pd.Series(pearson_coef_preds)
     
-    df.to_csv("results_keras.csv")
-# final 
+    df.index = files
+    df.to_csv(f"results_{model_name}_new.csv")
+
+         
+def scatter_test_pred(fit_filepath, predict_file_path, model_name,max_length=16): 
+    test_one_hot_sequences, test_scores = get_model_data(predict_file_path, max_length)
+    model = fit_on_data(fit_filepath, max_length, model_name)
+    pearson_coef_pred,predictions = predict_on_data(model, predict_file_path, max_length)
+    x = test_scores
+    y = np.squeeze(predictions)
+    # test_scores = pd.read_csv("/Users/yaeltzur/Desktop/uni/third_yaer/סדנה/fred_test.csv", header=None, index_col=False).iloc[:, 1].dropna()
+    # predictions = pd.read_csv("/Users/yaeltzur/Desktop/uni/third_yaer/סדנה/pred_tnfr.csv", header=None, index_col=False).iloc[:, 1].dropna()
+    plt.figure(figsize=(8, 6))
+    plt.scatter(x, y)
+    plt.title('True vs Predicted Scores')
+    plt.xlabel('True Scores')
+    plt.ylabel('Predicted Scores')
+    plt.grid(True)
+    plt.show()
+    
+
+    
+    
+if __name__=="__main__":
+    # scatter_test_pred("/Users/yaeltzur/Desktop/uni/third_yaer/סדנה/proteins/Ferredoxin.csv","/Users/yaeltzur/Desktop/uni/third_yaer/סדנה/proteins/TNFR.csv","cnn")
+    main_projct("keras")
     
